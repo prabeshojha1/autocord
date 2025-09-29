@@ -129,10 +129,22 @@ async def latest_lecture_summary(ctx, subject_name: str):
         
         # STEP 2: Get the video's transcript.
         try:
-            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-            transcript_text = " ".join([item['text'] for item in transcript_list])
-        except Exception:
-            await ctx.send(f"Bummer, I couldn't get a transcript for this video. The creator might have disabled them. Here's the link anyway: {video_url}")
+            ytt_api = YouTubeTranscriptApi()
+            transcript_data = ytt_api.fetch(video_id)
+            
+            if hasattr(transcript_data, 'transcript'):
+                transcript_list = transcript_data.transcript
+            elif hasattr(transcript_data, 'captions'):
+                transcript_list = transcript_data.captions
+            else:
+                transcript_list = list(transcript_data)
+            
+            transcript_text = " ".join([item['text'] if isinstance(item, dict) else item.text for item in transcript_list])
+            
+        except Exception as e:
+            print(f"Transcript error for video {video_id}: {type(e).__name__}: {e}")
+            print(f"Full error details: {e}")
+            await ctx.send(f"Bummer, I couldn't get a transcript for this video. Error: {type(e).__name__}: {str(e)}\n\nHere's the link anyway: {video_url}")
             return
         
         await ctx.send("Transcript acquired. Sending it to the AI brain for summarization. This can take a moment...")
